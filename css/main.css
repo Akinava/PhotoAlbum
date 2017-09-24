@@ -1,0 +1,44 @@
+div{
+  border: 1px solid #ff0000;
+  margin: 2px;
+}
+
+div.label{
+  color: #00ff00;
+}
+
+div.item{
+  cursor: pointer;
+  color: #0000ff;
+}
+
+div.item:hover{
+  background: #c0c0c0;
+}
+
+
+img.icon{
+  opacity: 0.4;
+  filter: alpha(opacity=40);
+}
+
+img.icon:hover{
+  opacity: 1.0;
+  filter: alpha(opacity=100);
+}
+
+div.path{
+  float:left;
+}
+
+div.icon{
+  float:left;
+}
+
+div.inline{
+  float:left;
+}
+
+div.clearBoth{
+  clear:both;
+}
