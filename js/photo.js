@@ -1,31 +1,44 @@
 function build_photo(id, data){
   if (data.type == 'tag'){
+    settings.photo_nav = null;
     rm_div('photo');
     return;
   }
   rm_div('tags children');
   var div_photo = insert_div_on_body_by_order('photo',  find_or_create('photo'));
-  
-  var button_left_photo = find_or_create('button left photo item inline');
-  button_left_photo.innerHTML = '<';
+  div_photo.innerHTML = '';
 
-  var button_right_photo = find_or_create('button right photo item  inline');
-  button_right_photo.innerHTML = '>';
+  // соседи по списку фоток тега, с которого пришли
+  var index = settings.icons_list.indexOf(id);
+  settings.photo_nav = {
+    prev: index > 0 ? settings.icons_list[index - 1] : null,
+    next: index != -1 ? settings.icons_list[index + 1] || null : null,
+  };
 
   var photo_img = document.createElement('img');
   photo_img.src = 'imgs/' + id + '.jpg';
+  photo_img.alt = data.title;
   var photo_wrapper = document.createElement('div');
+  photo_wrapper.className = 'photo_wrapper';
   photo_wrapper.appendChild(photo_img);
 
-  div_photo.appendChild(button_left_photo);
+  div_photo.appendChild(make_photo_button('<', settings.photo_nav.prev));
   div_photo.appendChild(photo_wrapper);
-  div_photo.appendChild(button_right_photo);
+  div_photo.appendChild(make_photo_button('>', settings.photo_nav.next));
+}
 
-  close_line(div_photo);
-  // button_previous_photo.onclick =
-
-  console.log('build_photo ', data.info);
-  // взять список фоток, создать страницу, передать список
+function make_photo_button(label, target_id){
+  var button = document.createElement('div');
+  button.innerHTML = label;
+  if (!target_id){
+    button.className = 'button disabled';
+    return button;
+  }
+  button.className = 'button item';
+  button.onclick = function(){
+    open_page(target_id);
+  };
+  return button;
 }
 
 function add_icon(params, data){
@@ -39,7 +52,14 @@ function add_icon(params, data){
   div.id = params.id;
   div.onclick = goto_page;
   div.appendChild(img);
-  icons.appendChild(div);
+  insert_ordered(icons, div, params.order);
   insert_div_on_body_by_order('icons', icons);
-  close_line(icons);  
+  close_line(icons);
+
+  settings.icons_list = [];
+  for (var i = 0; i < icons.children.length; i++){
+    if (icons.children[i].className == 'icon'){
+      settings.icons_list.push(icons.children[i].id);
+    }
+  }
 }

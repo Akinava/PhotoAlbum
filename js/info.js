@@ -21,6 +21,7 @@ function build_breadcrumb(id, data){
   var breadcrumb = insert_div_on_body_by_order('breadcrumb',  find_or_create('breadcrumb'));
   var id_exist = false;
   var i = 0;
+  var c_node;
   while (c_node = breadcrumb.childNodes[i]){
     if (id_exist){
       c_node.remove();
@@ -32,11 +33,21 @@ function build_breadcrumb(id, data){
       id_exist = true;
     }
   }
+  if (!id_exist && data.type == 'photo'){
+    // листание фоток заменяет последнюю фотку в пути, а не удлиняет его
+    var items = breadcrumb.getElementsByClassName('path item');
+    var last = items[items.length - 1];
+    if (last && last.dataset.type == 'photo'){
+      last.previousSibling.remove();
+      last.remove();
+    }
+  }
   if (!id_exist){
     var c_item = document.createElement('div');
     c_item.className = 'path item inline';
     c_item.innerHTML = data.title;
     c_item.id = id;
+    c_item.dataset.type = data.type;
     c_item.onclick = goto_page;
 
     var sep = document.createElement('div');

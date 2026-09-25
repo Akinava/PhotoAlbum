@@ -15,10 +15,25 @@ settings.div_order = [
 settings.tag_label = {parents: 'родительские теги', children: 'дочерние теги'};
 settings.icons = {depth: null, count: null} // null=all, 0, 1... // depth глубина выгрузки фоток / count макс. кол-во выгружаемых фоток
 // TODO sorterind/randomise: tags icons
+settings.icons_list = [];   // id фоток текущего тега в порядке показа, для кнопок < >
+settings.photo_nav = null;  // {prev, next} для текущей фотки
+settings.page_token = 0;    // номер последнего перехода, ответы от старых страниц отбрасываются
+settings.visited = {};      // уже запрошенные id при обходе тегов текущей страницы
 
 window.onload = function(){
   init();
 }
+
+document.addEventListener('keydown', function(e){
+  var nav = settings.photo_nav;
+  if (!nav){
+    return;
+  }
+  var target = e.key == 'ArrowLeft' ? nav.prev : e.key == 'ArrowRight' ? nav.next : null;
+  if (target){
+    open_page(target);
+  }
+});
 
 function init(){
   var js_tools = ['tags', 'photo', 'info'];
@@ -32,7 +47,7 @@ function init(){
     var scripts = document.head.getElementsByTagName('script');
     var js_name = [];
     for (var i = 0; i < scripts.length; i++){
-      b_name = base_name(scripts[i].src)
+      var b_name = base_name(scripts[i].src)
       js_name.push(b_name.substring(0, b_name.length - 3));
     }
 
@@ -42,7 +57,7 @@ function init(){
       }
     }
     page_ready = true;
-    add_json(settings.initial_id, {func: build_page, params: settings.initial_id});
+    open_page(settings.initial_id);
   }
 
   for (var file in js_tools){
@@ -81,8 +96,23 @@ function rm_js(id){
   }
 }
 
-function build_page(id){
+function open_page(id){
+  var token = ++settings.page_token;
+  add_json(id, {func: build_page, params: {id: id, token: token}});
+}
+
+function build_page(params){
+  if (params.token != settings.page_token){
+    rm_js(params.id);
+    return;
+  }
+  var id = params.id;
   var data = get_data(id);
+  settings.visited = {};
+  for (var sub_tags in settings.tag_label){
+    settings.visited[sub_tags] = {};
+    settings.visited[sub_tags][id] = true;
+  }
   clear_page(data);
   document.title = data.title;
   build_breadcrumb(id, data);
@@ -141,7 +171,23 @@ function insert_div_on_body_by_order(div_id, div_body){
 }
 
 function goto_page() {
-  add_json(this.id, {func: build_page, params: this.id});
+  open_page(this.id);
+}
+
+function order_key(order){
+  return order.map(function(i){return ('000' + i).slice(-4)}).join('.');
+}
+
+function insert_ordered(container, el, order){
+  el.dataset.order = order_key(order);
+  for (var i = 0; i < container.children.length; i++){
+    var c_order = container.children[i].dataset.order;
+    if (c_order && c_order > el.dataset.order){
+      container.insertBefore(el, container.children[i]);
+      return;
+    }
+  }
+  container.appendChild(el);
 }
 
 function close_line(el){

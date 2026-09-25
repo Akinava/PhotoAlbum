@@ -10,7 +10,7 @@ function build_sub_tags(data, sub_tags){
     return;
   }
   var tag_div = make_div_tag(sub_tags);
-  load_tags(data, sub_tags, tag_div, 0);
+  load_tags(data, sub_tags, tag_div, 0, []);
 }
 
 function make_div_tag(sub_tags){
@@ -28,22 +28,27 @@ function make_div_tag(sub_tags){
 }
 
 function add_tag(params){
+  if (params.token != settings.page_token){
+    // ответ пришёл от страницы, с которой уже ушли
+    rm_js(params.id);
+    return;
+  }
   if (params.level > 0 && 
       settings.icons.count != null && 
       settings.icons.count <= find_or_create('icons').childElementCount){
+    rm_js(params.id);
     return;
   };
   var data = get_data(params.id);
   if (data.type == 'photo'){
-    cl_list = document.getElementsByClassName('tags list ' + params.tag_type)[0];
+    var cl_list = document.getElementsByClassName('tags list ' + params.tag_type)[0];
     if (cl_list && cl_list.innerHTML == ''){
       rm_div('tags ' + params.tag_type);
     }
-    settings.icons_list.push(params.id);
     add_icon(params, data);
     return;
   }
-  icons = document.getElementsByClassName('icons')[0];
+  var icons = document.getElementsByClassName('icons')[0];
   if (icons && icons.innerHTML == ''){
     rm_div('icons');
   }
@@ -56,7 +61,7 @@ function add_tag(params){
     tag.className = 'tag item inline';
     tag.innerHTML = data.title;
     tag.id = params.id;
-    tags_list.appendChild(tag);
+    insert_ordered(tags_list, tag, params.order);
     tag.onclick = goto_page;
     close_line(tags_list);
   }
@@ -65,13 +70,19 @@ function add_tag(params){
   if (params.tag_type == 'children' && 
       (settings.icons.depth == null || 
        params.level < settings.icons.depth)){
-    load_tags(data, params.tag_type, params.tag_div, params.level + 1);
+    load_tags(data, params.tag_type, params.tag_div, params.level + 1, params.order);
   };
 };
 
-function load_tags(data, type, div, level){
+function load_tags(data, type, div, level, order){
+  var visited = settings.visited[type];
   for (var i = 0; i < data[type].length; i++){
     var id = data[type][i];
+    // защита от циклов и повторов, если у узла несколько родителей
+    if (visited[id]){
+      continue;
+    }
+    visited[id] = true;
     add_json(id,
              {func: add_tag,
               params: {
@@ -80,6 +91,8 @@ function load_tags(data, type, div, level){
                 tag_type: type,
                 tag_div: div,
                 level: level,
+                order: order.concat(i),
+                token: settings.page_token,
               }
              }
     );
