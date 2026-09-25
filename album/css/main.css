@@ -42,6 +42,15 @@ div.path.item{
   padding: 2px 6px;
 }
 
+div.path.item.current{
+  cursor: default;
+  color: inherit;
+}
+
+div.path.item.current:hover{
+  background: none;
+}
+
 div.icon{
   float:left;
   margin: 4px;
