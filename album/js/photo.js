@@ -18,13 +18,68 @@ function build_photo(id, data){
   var photo_img = document.createElement('img');
   photo_img.src = 'imgs/' + id + '.jpg';
   photo_img.alt = data.title;
+  var photo_frame = document.createElement('div');
+  photo_frame.className = 'photo_frame';
+  photo_frame.appendChild(photo_img);
   var photo_wrapper = document.createElement('div');
   photo_wrapper.className = 'photo_wrapper';
-  photo_wrapper.appendChild(photo_img);
+  photo_wrapper.appendChild(photo_frame);
+  if (data.areas && data.areas.length){
+    photo_img.onload = function(){
+      build_areas(photo_frame, photo_img, data.areas);
+    };
+  }
 
   div_photo.appendChild(make_photo_button('<', settings.photo_nav.prev));
   div_photo.appendChild(photo_wrapper);
   div_photo.appendChild(make_photo_button('>', settings.photo_nav.next));
+}
+
+function build_areas(frame, img, areas){
+  // area: [x1, y1, x2, y2] в пикселях оригинала, переводим в проценты, чтобы зона масштабировалась вместе с фото
+  var w = img.naturalWidth;
+  var h = img.naturalHeight;
+  var clip = document.createElement('div');
+  clip.className = 'photo_areas';
+  frame.appendChild(clip);
+  var token = settings.page_token;
+
+  areas.forEach(function(item){
+    var a = item.area;
+    var area = document.createElement('div');
+    area.className = 'photo_area';
+    area.style.left = a[0] / w * 100 + '%';
+    area.style.top = a[1] / h * 100 + '%';
+    area.style.width = (a[2] - a[0]) / w * 100 + '%';
+    area.style.height = (a[3] - a[1]) / h * 100 + '%';
+    clip.appendChild(area);
+
+    var label = document.createElement('div');
+    label.className = 'photo_area_label';
+    label.style.left = area.style.left;
+    label.style.top = a[3] / h * 100 + '%';
+    frame.appendChild(label);
+
+    area.onmouseenter = function(){
+      area.classList.add('active');
+      label.classList.add('active');
+    };
+    area.onmouseleave = function(){
+      area.classList.remove('active');
+      label.classList.remove('active');
+    };
+    area.onclick = function(){
+      open_page(item.tag);
+    };
+
+    add_json(item.tag, {func: function(id){
+      if (token != settings.page_token){
+        rm_js(id);
+        return;
+      }
+      label.textContent = get_data(id).title;
+    }, params: item.tag});
+  });
 }
 
 function make_photo_button(label, target_id){

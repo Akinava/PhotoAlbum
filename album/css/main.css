@@ -68,10 +68,55 @@ div.photo_wrapper{
   text-align: center;
 }
 
-div.photo_wrapper img{
+div.photo_frame{
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+div.photo_frame img{
+  display: block;
   max-width: 100%;
   max-height: 80vh;
   height: auto;
+}
+
+/* слой с зонами обрезает тень, чтобы затемнение не выходило за фото */
+div.photo_areas{
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+div.photo_area{
+  position: absolute;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: box-shadow 0.2s;
+}
+
+div.photo_area.active{
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  outline: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+div.photo_area_label{
+  position: absolute;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 0.9em;
+  white-space: nowrap;
+  pointer-events: none;
+  display: none;
+}
+
+div.photo_area_label.active{
+  display: block;
 }
 
 div.button{
