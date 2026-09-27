@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Добавить фото или видео</title>
+    <link rel="stylesheet" href="/static/common.css">
+    <style>
+      div.layout{
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      div.photo_col{
+        flex: 1;
+        min-width: 0;
+      }
+      div.photo_col img,
+      div.photo_col video{
+        display: block;
+        max-width: 100%;
+        max-height: 80vh;
+        margin-top: 12px;
+      }
+      div.editor{
+        width: 400px;
+        flex-shrink: 0;
+      }
+      @media (max-width: 700px){
+        div.layout{
+          flex-direction: column;
+        }
+        div.editor{
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h2>
+      Добавить фото или видео
+      <a href="/" style="font-size: 0.6em">на главную</a>
+      <a href="/album/" target="_blank" style="font-size: 0.6em">открыть альбом</a>
+    </h2>
+    <div class="layout">
+      <div class="photo_col">
+        <label for="file">Файл</label>
+        <input type="file" id="file" accept="image/*,video/*">
+        <img id="preview" alt="" hidden>
+        <video id="preview_video" controls hidden></video>
+      </div>
+      <div class="editor">
+        <label for="title">Название</label>
+        <input type="text" id="title">
+        <label for="info">Информация</label>
+        <textarea id="info"></textarea>
+        <div class="picker" id="info_link"></div>
+        <div class="hint">выделите текст и выберите страницу — он станет ссылкой; без выделения вставится название страницы</div>
+        <label>Родительские теги</label>
+        <div class="chips" id="parents"></div>
+        <div class="picker" id="parents_add"></div>
+        <div class="buttons">
+          <button class="action" id="save">Загрузить</button>
+        </div>
+        <div class="hint">зоны на фото можно будет отметить после загрузки; видео, которое браузер не проиграет, будет перекодировано в mp4 — это может занять время</div>
+        <div class="message" id="message"></div>
+      </div>
+    </div>
+
+    <script src="/static/common.js"></script>
+    <script>
+      var state = {
+        items: {},    // id -> {type, title, parents} всех тегов и фото
+        parents: [],
+      };
+
+      function render_parents(){
+        var box = $('parents');
+        box.innerHTML = '';
+        state.parents.forEach(function(id){
+          var chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.appendChild(document.createTextNode(item_label(id)));
+          var rm = document.createElement('button');
+          rm.textContent = '×';
+          rm.title = 'убрать';
+          rm.onclick = function(){
+            state.parents = state.parents.filter(function(x){return x != id});
+            render_parents();
+          };
+          chip.appendChild(rm);
+          box.appendChild(chip);
+        });
+        var ids = Object.keys(state.items).filter(function(id){
+          return state.items[id].type == 'tag' && state.parents.indexOf(id) == -1;
+        });
+        fill_picker('parents_add', '— добавить —', ids, function(picked){
+          state.parents.push.apply(state.parents, picked);
+          render_parents();
+        }, true);
+      }
+
+      $('file').onchange = function(){
+        var file = $('file').files[0];
+        var is_video = !!file && file.type.indexOf('video/') == 0;
+        [$('preview'), $('preview_video')].forEach(function(el){
+          if (el.src){
+            URL.revokeObjectURL(el.src);
+            el.removeAttribute('src');
+          }
+        });
+        var el = is_video ? $('preview_video') : $('preview');
+        $('preview').hidden = !file || is_video;
+        $('preview_video').hidden = !is_video;
+        if (file){
+          el.src = URL.createObjectURL(file);
+        }
+        // название по умолчанию — имя файла без расширения
+        if (file && !$('title').value.trim()){
+          $('title').value = file.name.replace(/\.[^.]*$/, '');
+        }
+      };
+
+      // XMLHttpRequest, а не fetch — ради прогресса загрузки больших видео
+      function upload(form){
+        return new Promise(function(resolve, reject){
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', '/api/photos');
+          xhr.responseType = 'json';
+          xhr.upload.onprogress = function(e){
+            if (e.lengthComputable){
+              var done = e.loaded == e.total;
+              show_message(done ? 'Обработка на сервере…' : 'Загрузка ' + Math.floor(e.loaded / e.total * 100) + '%');
+            }
+          };
+          xhr.onload = function(){
+            resolve({status: xhr.status, data: xhr.response || {}});
+          };
+          xhr.onerror = function(){
+            reject(new Error('сервер недоступен'));
+          };
+          xhr.send(form);
+        });
+      }
+
+      $('save').onclick = function(){
+        var file = $('file').files[0];
+        if (!file){
+          show_message('выберите файл', 'error');
+          return;
+        }
+        var form = new FormData();
+        form.append('file', file);
+        form.append('title', $('title').value.trim());
+        form.append('info', $('info').value);
+        form.append('parents', JSON.stringify(state.parents));
+        $('save').disabled = true;
+        show_message('Загрузка…');
+        upload(form).then(function(r){
+          var data = r.data;
+          // такой файл уже загружен — предлагаем открыть его
+          if (r.status == 409){
+            if (confirm(data.detail.message + '. Открыть его?')){
+              location.href = '/photo/' + data.detail.id;
+              return;
+            }
+            throw new Error(data.detail.message);
+          }
+          if (r.status >= 400){
+            var detail = Array.isArray(data.detail) ? data.detail.map(function(d){return d.msg}).join('; ') : data.detail;
+            throw new Error(detail || 'ошибка ' + r.status);
+          }
+          // дальше — редактор фото, там отмечаются зоны
+          location.href = '/photo/' + data.id;
+        }).catch(function(e){
+          $('save').disabled = false;
+          show_message(e.message, 'error');
+        });
+      };
+
+      load_items().then(function(){
+        render_parents();
+        fill_link_picker(null);
+      }).catch(function(e){
+        show_message(e.message, 'error');
+      });
+    </script>
+  </body>
+</html>
