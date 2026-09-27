@@ -1,0 +1,181 @@
+:root{
+  color-scheme: light;
+}
+/* иначе display из правил ниже перебивает атрибут hidden */
+[hidden]{
+  display: none !important;
+}
+body{
+  margin: 16px;
+  font-family: sans-serif;
+  color: #222;
+}
+a{
+  color: #1a5fb4;
+}
+label{
+  display: block;
+  color: #777;
+  font-size: 0.9em;
+  margin: 12px 0 4px;
+}
+input[type=text], textarea, select{
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+textarea{
+  min-height: 80px;
+  resize: vertical;
+}
+div.hint{
+  color: #777;
+  font-size: 0.8em;
+  margin-top: 2px;
+}
+div.chips{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+span.chip{
+  background: #e6e6e6;
+  border-radius: 12px;
+  padding: 2px 4px 2px 10px;
+}
+span.chip.photo{
+  background: #f3ead0;
+}
+span.chip span.link{
+  color: #1a5fb4;
+  cursor: pointer;
+}
+span.chip span.link:hover{
+  text-decoration: underline;
+}
+div.picker{
+  position: relative;
+  margin-top: 4px;
+}
+div.picker_head{
+  padding: 6px 28px 6px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+}
+div.picker_head::after{
+  content: '▾';
+  position: absolute;
+  right: 10px;
+  color: #777;
+}
+div.picker_list{
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+div.picker.open div.picker_list{
+  display: block;
+}
+input.picker_search{
+  position: sticky;
+  top: 0;
+  border: none;
+  border-bottom: 1px solid #ccc;
+  border-radius: 0;
+  background: #fff;
+}
+div.picker_empty{
+  padding: 4px 8px;
+  color: #999;
+}
+div.picker_option{
+  padding: 4px 8px;
+  cursor: pointer;
+}
+div.picker_option:hover,
+div.picker_option.active{
+  background: #e6e6e6;
+}
+div.picker_option.photo{
+  color: #7a4f00;
+  background: #f3ead0;
+}
+div.picker_option.photo:hover,
+div.picker_option.photo.active{
+  background: #eadcb0;
+}
+div.picker_option input[type=checkbox]{
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+  pointer-events: none;  /* щелчок обрабатывает сам пункт, иначе галочка переключилась бы дважды */
+}
+div.picker_footer{
+  position: sticky;
+  bottom: 0;
+  padding: 6px 8px;
+  border-top: 1px solid #ccc;
+  background: #fff;
+  text-align: right;
+}
+div.picker_footer button:disabled{
+  opacity: 0.5;
+  cursor: default;
+}
+span.chip button{
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #777;
+  font-size: 1em;
+  padding: 0 4px;
+}
+span.chip button:hover{
+  color: #c01c28;
+}
+div.buttons{
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+button.action{
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid #1a5fb4;
+  background: #1a5fb4;
+  color: #fff;
+  cursor: pointer;
+}
+button.action.danger{
+  border-color: #c01c28;
+  background: #fff;
+  color: #c01c28;
+  margin-left: auto;
+}
+div.message{
+  margin-top: 12px;
+  min-height: 1.2em;
+}
+div.message.error{
+  color: #c01c28;
+}
+div.message.ok{
+  color: #26a269;
+}

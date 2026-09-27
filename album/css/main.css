@@ -1,0 +1,170 @@
+body{
+  margin: 16px;
+  font-family: sans-serif;
+  color: #222;
+}
+
+body > div{
+  margin-bottom: 12px;
+}
+
+div.label{
+  color: #777;
+  font-size: 0.9em;
+}
+
+div.item{
+  cursor: pointer;
+  color: #1a5fb4;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+div.item:hover{
+  background: #e6e6e6;
+}
+
+img.icon{
+  display: block;
+  opacity: 0.7;
+}
+
+img.icon:hover{
+  opacity: 1.0;
+}
+
+div.path{
+  float:left;
+  padding: 2px 0;
+}
+
+div.path.item{
+  padding: 2px 6px;
+}
+
+div.path.item.current{
+  cursor: default;
+  color: inherit;
+}
+
+div.path.item.current:hover{
+  background: none;
+}
+
+div.icon{
+  float:left;
+  margin: 4px;
+  cursor: pointer;
+}
+
+/* значок ▶ поверх превью видео */
+div.icon.video{
+  position: relative;
+}
+
+div.icon.video::after{
+  content: '▶';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+div.inline{
+  float:left;
+}
+
+div.clearBoth{
+  clear:both;
+}
+
+div.media{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+div.media_wrapper{
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+div.media_frame{
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+div.media_frame img,
+div.media_frame video{
+  display: block;
+  max-width: 100%;
+  max-height: 80vh;
+  height: auto;
+}
+
+/* слой с зонами обрезает тень, чтобы затемнение не выходило за фото */
+div.photo_areas{
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+div.photo_area{
+  position: absolute;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: box-shadow 0.2s;
+}
+
+div.photo_area.active{
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  outline: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+div.photo_area_label{
+  position: absolute;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 0.9em;
+  white-space: nowrap;
+  pointer-events: none;
+  display: none;
+}
+
+div.photo_area_label.active{
+  display: block;
+}
+
+div.button{
+  font-size: 2em;
+  padding: 8px 12px;
+  user-select: none;
+}
+
+div.button.disabled{
+  color: #ccc;
+  cursor: default;
+}
+
+a.info.link{
+  color: #1a5fb4;
+  text-decoration: underline;
+  cursor: pointer;
+}

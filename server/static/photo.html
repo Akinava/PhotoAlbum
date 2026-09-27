@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Редактор фото</title>
+    <link rel="stylesheet" href="/static/common.css">
+    <style>
+      div.layout{
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      div.photo_col{
+        flex: 1;
+        min-width: 0;
+      }
+      div.editor{
+        width: 400px;
+        flex-shrink: 0;
+      }
+      video#video{
+        display: block;
+        max-width: 100%;
+        max-height: 80vh;
+      }
+      div.frame{
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        line-height: 0;
+      }
+      div.frame img{
+        display: block;
+        max-width: 100%;
+        max-height: 80vh;
+        user-select: none;
+        -webkit-user-drag: none;
+      }
+      div.overlay{
+        position: absolute;
+        inset: 0;
+        cursor: crosshair;
+        touch-action: none;
+      }
+      div.area{
+        position: absolute;
+        box-sizing: border-box;
+        border: 2px solid rgba(26, 95, 180, 0.8);
+        background: rgba(26, 95, 180, 0.12);
+        cursor: move;
+      }
+      div.overlay.redraw div.area{
+        cursor: crosshair;
+      }
+      div.overlay.resize div.area{
+        cursor: inherit;
+      }
+      div.area.moving{
+        border-style: dashed;
+      }
+      div.area.no_tag{
+        border-color: rgba(192, 28, 40, 0.9);
+        border-style: dashed;
+      }
+      div.area.active{
+        border-color: #f6d32d;
+        background: rgba(246, 211, 45, 0.2);
+      }
+      div.area span{
+        position: absolute;
+        left: 0;
+        top: 0;
+        padding: 1px 5px;
+        font-size: 12px;
+        line-height: 1.4;
+        color: #fff;
+        background: rgba(26, 95, 180, 0.8);
+        white-space: nowrap;
+      }
+      div.area.no_tag span{
+        background: rgba(192, 28, 40, 0.9);
+      }
+      div.area.active span{
+        background: #f6d32d;
+        color: #222;
+      }
+      div.drawing{
+        position: absolute;
+        box-sizing: border-box;
+        border: 2px dashed #f6d32d;
+        background: rgba(246, 211, 45, 0.15);
+        pointer-events: none;
+      }
+      div.area_row{
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px;
+        border-radius: 4px;
+      }
+      div.area_row.active{
+        background: #fbf3c4;
+      }
+      div.area_row span.num{
+        width: 1.6em;
+        text-align: center;
+        color: #777;
+      }
+      div.area_row div.picker{
+        flex: 1;
+        min-width: 0;
+        margin-top: 0;
+      }
+      div.area_row button{
+        font: inherit;
+        border: 1px solid #ccc;
+        background: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+        padding: 4px 8px;
+        color: #555;
+      }
+      div.area_row button.pressed{
+        border-color: #f6d32d;
+        background: #fbf3c4;
+      }
+      div.area_row button.rm:hover{
+        color: #c01c28;
+      }
+      @media (max-width: 900px){
+        div.layout{
+          flex-direction: column;
+        }
+        div.editor{
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h2>
+      <span id="heading">Фото</span>
+      <a href="/" style="font-size: 0.6em" id="back">на главную</a>
+      <a href="/album/" target="_blank" style="font-size: 0.6em">открыть альбом</a>
+    </h2>
+    <div class="layout">
+      <div class="photo_col">
+        <video id="video" controls preload="metadata" hidden></video>
+        <div class="frame" id="frame">
+          <img id="img" alt="">
+          <div class="overlay" id="overlay"></div>
+        </div>
+        <div class="hint" id="areas_hint">протяните мышью по фото, чтобы добавить зону; зону можно перетащить, а за границу или угол — изменить размер; ⬚ — задать зоне новую рамку</div>
+      </div>
+      <div class="editor">
+        <label for="title">Название</label>
+        <input type="text" id="title">
+        <label for="info">Информация</label>
+        <textarea id="info"></textarea>
+        <div class="picker" id="info_link"></div>
+        <div class="hint">выделите текст и выберите страницу — он станет ссылкой; без выделения вставится название страницы</div>
+        <label>Родительские теги</label>
+        <div class="chips" id="parents"></div>
+        <div class="picker" id="parents_add"></div>
+        <div id="areas_box">
+          <label>Зоны на фото</label>
+          <div id="areas"></div>
+        </div>
+        <div class="buttons">
+          <button class="action" id="save">Сохранить</button>
+          <button class="action danger" id="delete">Удалить</button>
+        </div>
+        <div class="message" id="message"></div>
+      </div>
+    </div>
+
+    <script src="/static/common.js"></script>
+    <script>
+      var state = {
+        items: {},       // id -> {type, title, parents} всех тегов и фото
+        id: location.pathname.split('/').pop(),
+        saved: null,     // фото как на сервере
+        parents: [],
+        areas: [],       // [{area: [x1, y1, x2, y2] в пикселях оригинала, tag: id тега или фото | null}]
+        active: null,    // индекс подсвеченной зоны
+        redraw: null,    // индекс зоны, которой следующая рамка заменит координаты
+      };
+
+      function tag_ids(){
+        return Object.keys(state.items).sort().filter(function(id){return state.items[id].type == 'tag'});
+      }
+
+      // зона ведёт на тег или другое фото
+      function area_ids(){
+        return Object.keys(state.items).sort().filter(function(id){return id != state.id});
+      }
+
+      function load(){
+        return Promise.all([load_items(), api('GET', '/api/photos/' + state.id)]).then(function(res){
+          var photo = res[1];
+          state.saved = photo;
+          state.parents = photo.parents.slice();
+          state.areas = (photo.areas || []).map(function(a){return {area: a.area.slice(), tag: a.tag}});
+          state.active = null;
+          state.redraw = null;
+          document.title = 'Фото «' + photo.title + '»';
+          $('heading').textContent = 'Фото «' + photo.title + '»';
+          $('title').value = photo.title;
+          $('info').value = photo.info || '';
+          if (photo.media == 'video'){
+            show_video();
+          }
+          // «на главную» возвращает к первому родителю
+          $('back').href = photo.parents.length ? '/?tag=' + photo.parents[0] : '/';
+          render();
+        });
+      }
+
+      // у видео вместо фото с зонами — плеер; зоны на видео не отмечаются
+      function show_video(){
+        var video = $('video');
+        if (!video.hidden){
+          return;
+        }
+        video.src = '/album/videos/' + state.id + '.mp4';
+        video.poster = '/album/imgs/' + state.id + '.jpg';
+        video.hidden = false;
+        $('frame').hidden = true;
+        $('areas_hint').hidden = true;
+        $('areas_box').hidden = true;
+      }
+
+      function current_data(){
+        return {
+          title: $('title').value.trim(),
+          info: $('info').value,
+          parents: state.parents,
+          areas: state.areas,
+        };
+      }
+
+      function is_dirty(){
+        var s = state.saved;
+        return JSON.stringify(current_data()) != JSON.stringify({
+          title: s.title, info: s.info || '', parents: s.parents, areas: s.areas || [],
+        });
+      }
+
+      function render(){
+        render_parents();
+        fill_link_picker(state.id);
+        render_areas();
+      }
+
+      function render_parents(){
+        var box = $('parents');
+        box.innerHTML = '';
+        state.parents.forEach(function(id){
+          var chip = document.createElement('span');
+          chip.className = 'chip';
+          var name = document.createElement('a');
+          name.textContent = item_label(id);
+          name.href = '/?tag=' + id;
+          // о несохранённых изменениях предупредит beforeunload
+          name.title = 'открыть тег';
+          chip.appendChild(name);
+          var rm = document.createElement('button');
+          rm.textContent = '×';
+          rm.title = 'убрать';
+          rm.onclick = function(){
+            state.parents = state.parents.filter(function(x){return x != id});
+            render_parents();
+          };
+          chip.appendChild(rm);
+          box.appendChild(chip);
+        });
+        var ids = tag_ids().filter(function(id){return state.parents.indexOf(id) == -1});
+        fill_picker('parents_add', '— добавить —', ids, function(picked){
+          state.parents.push.apply(state.parents, picked);
+          render_parents();
+        }, true);
+      }
+
+      // тег больше не отмечен ни одной зоной — убираем его из родителей (фото перестаёт быть его дочерним)
+      function unlink_tag(id){
+        if (!id || state.items[id].type != 'tag' || state.areas.some(function(a){return a.tag == id})){
+          return;
+        }
+        state.parents = state.parents.filter(function(x){return x != id});
+        render_parents();
+      }
+
+      function set_active(index){
+        state.active = index;
+        [].forEach.call(document.querySelectorAll('div.area, div.area_row'), function(el){
+          el.classList.toggle('active', el.dataset.index == index);
+        });
+      }
+
+      function render_areas(){
+        var img = $('img');
+        var overlay = $('overlay');
+        overlay.innerHTML = '';
+        overlay.classList.toggle('redraw', state.redraw != null);
+        if (img.naturalWidth){
+          var w = img.naturalWidth, h = img.naturalHeight;
+          state.areas.forEach(function(item, i){
+            var a = item.area;
+            var div = document.createElement('div');
+            div.className = 'area' + (item.tag ? '' : ' no_tag') + (i == state.active ? ' active' : '');
+            div.dataset.index = i;
+            div.style.left = a[0] / w * 100 + '%';
+            div.style.top = a[1] / h * 100 + '%';
+            div.style.width = (a[2] - a[0]) / w * 100 + '%';
+            div.style.height = (a[3] - a[1]) / h * 100 + '%';
+            var label = document.createElement('span');
+            label.textContent = (i + 1) + '. ' + (item.tag ? item_label(item.tag) : 'не выбрано');
+            div.appendChild(label);
+            div.onmouseenter = function(){set_active(i)};
+            div.onmouseleave = function(){set_active(null)};
+            overlay.appendChild(div);
+          });
+        }
+
+        var box = $('areas');
+        box.innerHTML = '';
+        if (!state.areas.length){
+          box.innerHTML = '<div class="hint">зон нет</div>';
+        }
+        state.areas.forEach(function(item, i){
+          var row = document.createElement('div');
+          row.className = 'area_row' + (i == state.active ? ' active' : '');
+          row.dataset.index = i;
+          row.onmouseenter = function(){set_active(i)};
+          row.onmouseleave = function(){set_active(null)};
+          var num = document.createElement('span');
+          num.className = 'num';
+          num.textContent = i + 1;
+          row.appendChild(num);
+          var picker = document.createElement('div');
+          picker.className = 'picker';
+          row.appendChild(picker);
+          fill_picker(picker, item.tag ? item_full_path(item.tag) : '— выберите тег или фото —', area_ids(), function(id){
+            var old_tag = item.tag;
+            item.tag = id;
+            unlink_tag(old_tag);
+            // зона на тег делает фото дочерним этого тега — сразу показываем его в родителях
+            if (state.items[id].type == 'tag' && state.parents.indexOf(id) == -1){
+              state.parents.push(id);
+              render_parents();
+            }
+            render_areas();
+          });
+          var redraw = document.createElement('button');
+          redraw.textContent = '⬚';
+          redraw.title = state.redraw == i ? 'отменить перерисовку' : 'перерисовать рамку';
+          redraw.className = state.redraw == i ? 'pressed' : '';
+          redraw.onclick = function(){
+            state.redraw = state.redraw == i ? null : i;
+            render_areas();
+          };
+          row.appendChild(redraw);
+          var rm = document.createElement('button');
+          rm.className = 'rm';
+          rm.textContent = '×';
+          rm.title = 'удалить зону';
+          rm.onclick = function(){
+            state.areas.splice(i, 1);
+            unlink_tag(item.tag);
+            state.active = null;
+            state.redraw = null;
+            render_areas();
+          };
+          row.appendChild(rm);
+          box.appendChild(row);
+        });
+      }
+
+      // рисование новой рамки, перенос зоны и изменение её границ: координаты в пикселях оригинала
+      (function(){
+        var overlay = $('overlay');
+        var EDGE = 6;       // насколько близко к границе (в экранных пикселях) — это захват границы
+        var start = null, rect = null;
+        var drag = null;    // {index, edges, start, orig, div}; edges '' — перенос, иначе стороны из 'nswe'
+        var CURSORS = {n: 'ns-resize', s: 'ns-resize', w: 'ew-resize', e: 'ew-resize',
+                       nw: 'nwse-resize', se: 'nwse-resize', ne: 'nesw-resize', sw: 'nesw-resize'};
+
+        function point(e){
+          var img = $('img');
+          var r = img.getBoundingClientRect();
+          var scale = img.naturalWidth / r.width;
+          return [
+            Math.round(Math.min(Math.max(e.clientX - r.left, 0), r.width) * scale),
+            Math.round(Math.min(Math.max(e.clientY - r.top, 0), r.height) * scale),
+          ];
+        }
+
+        function box_of(a, b){
+          return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+        }
+
+        function min_size(){
+          return $('img').naturalWidth / 100;
+        }
+
+        // зона под курсором и за какие её стороны он держит; верхние зоны (нарисованные позже) — в приоритете
+        function hit(e){
+          var divs = overlay.querySelectorAll('div.area');
+          for (var i = divs.length - 1; i >= 0; i--){
+            var r = divs[i].getBoundingClientRect();
+            var x = e.clientX, y = e.clientY;
+            if (x < r.left - EDGE || x > r.right + EDGE || y < r.top - EDGE || y > r.bottom + EDGE){
+              continue;
+            }
+            // у маленькой зоны полоса захвата уже, чтобы середину можно было тянуть для переноса
+            var tx = Math.min(EDGE, r.width / 4), ty = Math.min(EDGE, r.height / 4);
+            var edges = (Math.abs(y - r.top) <= ty ? 'n' : Math.abs(y - r.bottom) <= ty ? 's' : '')
+              + (Math.abs(x - r.left) <= tx ? 'w' : Math.abs(x - r.right) <= tx ? 'e' : '');
+            // рядом с зоной, но не на границе — это уже снаружи
+            if (!edges && (x < r.left || x > r.right || y < r.top || y > r.bottom)){
+              continue;
+            }
+            return {div: divs[i], edges: edges};
+          }
+          return null;
+        }
+
+        function place(div, a){
+          var img = $('img');
+          div.style.left = a[0] / img.naturalWidth * 100 + '%';
+          div.style.top = a[1] / img.naturalHeight * 100 + '%';
+          div.style.width = (a[2] - a[0]) / img.naturalWidth * 100 + '%';
+          div.style.height = (a[3] - a[1]) / img.naturalHeight * 100 + '%';
+        }
+
+        // перенос — сдвиг целиком в пределах фото; граница — двигаем только её, не меньше min_size
+        function apply_drag(p){
+          var img = $('img');
+          var W = img.naturalWidth, H = img.naturalHeight, m = min_size();
+          var o = drag.orig;
+          var dx = p[0] - drag.start[0], dy = p[1] - drag.start[1];
+          var a;
+          if (!drag.edges){
+            dx = Math.min(Math.max(dx, -o[0]), W - o[2]);
+            dy = Math.min(Math.max(dy, -o[1]), H - o[3]);
+            a = [o[0] + dx, o[1] + dy, o[2] + dx, o[3] + dy];
+          } else {
+            a = o.slice();
+            var ed = drag.edges;
+            if (ed.indexOf('w') != -1) a[0] = Math.min(Math.max(o[0] + dx, 0), o[2] - m);
+            if (ed.indexOf('e') != -1) a[2] = Math.max(Math.min(o[2] + dx, W), o[0] + m);
+            if (ed.indexOf('n') != -1) a[1] = Math.min(Math.max(o[1] + dy, 0), o[3] - m);
+            if (ed.indexOf('s') != -1) a[3] = Math.max(Math.min(o[3] + dy, H), o[1] + m);
+            a = a.map(Math.round);
+          }
+          state.areas[drag.index].area = a;
+          place(drag.div, a);
+        }
+
+        // курсор подсказывает, что будет: изменить границу, перенести или рисовать
+        function update_cursor(e){
+          var h = state.redraw == null ? hit(e) : null;
+          var c = h && h.edges ? CURSORS[h.edges] : '';
+          overlay.style.cursor = c;
+          overlay.classList.toggle('resize', !!c);
+        }
+
+        overlay.onpointerdown = function(e){
+          if (!$('img').naturalWidth || e.button != 0){
+            return;
+          }
+          e.preventDefault();
+          overlay.setPointerCapture(e.pointerId);
+          // в режиме «новая рамка» всегда рисуем
+          var h = state.redraw == null ? hit(e) : null;
+          if (h){
+            var index = +h.div.dataset.index;
+            drag = {index: index, edges: h.edges, start: point(e), orig: state.areas[index].area.slice(), div: h.div};
+            h.div.classList.add('moving');
+            set_active(index);
+            return;
+          }
+          start = point(e);
+          rect = document.createElement('div');
+          rect.className = 'drawing';
+          overlay.appendChild(rect);
+        };
+
+        overlay.onpointermove = function(e){
+          if (drag){
+            apply_drag(point(e));
+            return;
+          }
+          if (!start){
+            update_cursor(e);
+            return;
+          }
+          place(rect, box_of(start, point(e)));
+        };
+
+        overlay.onpointerup = function(e){
+          if (drag){
+            apply_drag(point(e));
+            state.active = drag.index;
+            drag = null;
+            render_areas();
+            update_cursor(e);
+            return;
+          }
+          if (!start){
+            return;
+          }
+          var b = box_of(start, point(e));
+          start = null;
+          rect.remove();
+          // слишком маленькая рамка — это просто клик
+          var min = min_size();
+          if (b[2] - b[0] < min || b[3] - b[1] < min){
+            return;
+          }
+          if (state.redraw != null){
+            state.areas[state.redraw].area = b;
+            state.active = state.redraw;
+            state.redraw = null;
+          } else {
+            state.areas.push({area: b, tag: null});
+            state.active = state.areas.length - 1;
+          }
+          render_areas();
+        };
+
+        overlay.onpointercancel = function(){
+          if (drag){
+            state.areas[drag.index].area = drag.orig;
+            drag = null;
+            render_areas();
+          }
+          start = null;
+          if (rect){
+            rect.remove();
+          }
+        };
+      })();
+
+      $('img').onload = render_areas;
+      $('img').onerror = function(){
+        show_message('нет файла фото imgs/' + state.id + '.jpg', 'error');
+      };
+      $('img').src = '/album/imgs/' + state.id + '.jpg';
+
+      $('save').onclick = function(){
+        var missing = state.areas.map(function(a, i){return a.tag ? null : i + 1}).filter(Boolean);
+        if (missing.length){
+          show_message('выберите тег или фото для зон: ' + missing.join(', '), 'error');
+          return;
+        }
+        api('PUT', '/api/photos/' + state.id, current_data()).then(function(res){
+          return load().then(function(){
+            var extra = res.changed.length ? ', обновлены связи в: ' + res.changed.map(item_label).join(', ') : '';
+            show_message('Сохранено' + extra, 'ok');
+          });
+        }).catch(function(e){
+          show_message(e.message, 'error');
+        });
+      };
+
+      // удаляются файлы фото или видео и все ссылки на него: из родительских тегов, зон на других фото и текстов «Информации»
+      $('delete').onclick = function(){
+        var what = state.saved.media == 'video' ? 'видео' : 'фото';
+        if (!confirm('Удалить ' + what + ' «' + state.saved.title + '»? Файлы и все ссылки на него будут удалены безвозвратно.')){
+          return;
+        }
+        api('DELETE', '/api/photos/' + state.id).then(function(){
+          state.saved = null;  // страницы больше нет — не спрашиваем о несохранённых правках
+          location.href = $('back').href;
+        }).catch(function(e){
+          show_message(e.message, 'error');
+        });
+      };
+
+      window.addEventListener('beforeunload', function(e){
+        if (state.saved && is_dirty()){
+          e.preventDefault();
+        }
+      });
+
+      load().catch(function(e){
+        show_message(e.message, 'error');
+      });
+    </script>
+  </body>
+</html>

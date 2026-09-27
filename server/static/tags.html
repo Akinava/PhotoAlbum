@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Редактор тегов</title>
+    <link rel="stylesheet" href="/static/common.css">
+    <style>
+      div.layout{
+        display: flex;
+        gap: 24px;
+        align-items: flex-start;
+      }
+      div.list{
+        width: 260px;
+        flex-shrink: 0;
+      }
+      div.editor{
+        flex: 1;
+        min-width: 0;
+        max-width: 640px;
+      }
+      div.item{
+        cursor: pointer;
+        color: #1a5fb4;
+        padding: 4px 6px;
+        border-radius: 4px;
+      }
+      div.item:hover{
+        background: #e6e6e6;
+      }
+      /* светлый фон с полоской слева — чтобы не путать выбранный тег со сплошными синими кнопками над списком */
+      div.item.current{
+        background: #dbe7f8;
+        color: #0f3d78;
+        font-weight: 600;
+        box-shadow: inset 3px 0 #1a5fb4;
+      }
+      @media (max-width: 700px){
+        div.layout{
+          flex-direction: column;
+        }
+        div.list{
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Главная <a href="/album/" target="_blank" style="font-size: 0.6em">открыть альбом</a></h2>
+    <div class="layout">
+      <div class="list">
+        <button class="action" id="new" style="margin-bottom: 8px">+ Новый тег</button>
+        <button class="action" id="add_photo" style="margin-bottom: 8px">+ Добавить фото или видео</button>
+        <div id="tags"></div>
+      </div>
+      <div class="editor">
+        <h3 id="heading">Новый тег</h3>
+        <label for="title">Название</label>
+        <input type="text" id="title">
+        <label for="info">Информация</label>
+        <textarea id="info"></textarea>
+        <div class="picker" id="info_link"></div>
+        <div class="hint">выделите текст и выберите страницу — он станет ссылкой; без выделения вставится название страницы</div>
+        <label>Родительские теги</label>
+        <div class="chips" id="parents"></div>
+        <div class="picker" id="parents_add"></div>
+        <label>Дочерние теги и фото</label>
+        <div class="chips" id="children"></div>
+        <div class="picker" id="children_add"></div>
+        <div class="buttons">
+          <button class="action" id="save">Сохранить</button>
+          <button class="action danger" id="delete">Удалить</button>
+        </div>
+        <div class="message" id="message"></div>
+      </div>
+    </div>
+
+    <script src="/static/common.js"></script>
+    <script>
+      var state = {
+        items: {},       // id -> {type, title, parents} всех тегов и фото
+        tags: [],
+        current: null,   // id редактируемого тега, null = новый
+        parents: [],
+        children: [],
+      };
+
+      function load(select_id){
+        return Promise.all([load_items(), api('GET', '/api/tags')]).then(function(res){
+          state.tags = res[1];
+          render_list();
+          var tag = state.tags.find(function(t){return t.id == select_id});
+          tag ? edit(tag) : edit(null);
+        });
+      }
+
+      // в списке только корневые теги — без родителей
+      function root_tags(){
+        return state.tags.filter(function(tag){return !tag.parents.length});
+      }
+
+      function render_list(){
+        var box = $('tags');
+        box.innerHTML = '';
+        root_tags().forEach(function(tag){
+          var div = document.createElement('div');
+          div.className = 'item' + (tag.id == state.current ? ' current' : '');
+          div.textContent = tag.title;
+          div.onclick = function(){
+            open_tag(tag);
+          };
+          box.appendChild(div);
+        });
+      }
+
+      // переход к тегу из списка (null — к новому тегу) — с вопросом, если в форме есть несохранённые правки
+      function open_tag(tag){
+        var what = tag ? 'Открыть тег «' + tag.title + '»' : 'Перейти к новому тегу';
+        if (is_dirty() && !confirm('Есть несохранённые изменения. ' + what + ' без сохранения?')){
+          return false;
+        }
+        edit(tag);
+        return true;
+      }
+
+      function edit(tag){
+        state.current = tag ? tag.id : null;
+        state.parents = tag ? tag.parents.slice() : [];
+        state.children = tag ? tag.children.slice() : [];
+        $('heading').textContent = tag ? 'Тег «' + tag.title + '»' : 'Новый тег';
+        $('title').value = tag ? tag.title : '';
+        $('info').value = tag ? tag.info : '';
+        $('delete').style.display = tag ? '' : 'none';
+        show_message('');
+        render_list();
+        render_links();
+      }
+
+      // отличается ли форма от сохранённого состояния тега
+      function is_dirty(){
+        var tag = state.tags.find(function(t){return t.id == state.current});
+        var saved = tag || {title: '', info: '', parents: [], children: []};
+        return $('title').value != saved.title
+          || $('info').value != saved.info
+          || state.parents.join() != saved.parents.join()
+          || state.children.join() != saved.children.join();
+      }
+
+      function render_links(){
+        render_chips('parents');
+        render_chips('children');
+        // родителем может быть только тег, ребёнком — тег или фото
+        fill_select('parents', function(i){return i.type == 'tag'});
+        fill_select('children', function(){return true});
+        fill_link_picker(state.current);
+      }
+
+      function render_chips(field){
+        var box = $(field);
+        box.innerHTML = '';
+        state[field].forEach(function(id){
+          var chip = document.createElement('span');
+          chip.className = 'chip' + (state.items[id] && state.items[id].type == 'photo' ? ' photo' : '');
+          var name = document.createElement('span');
+          name.textContent = item_label(id);
+          // чип тега открывает этот тег на редактирование, фото здесь не редактируются
+          var tag = state.tags.find(function(t){return t.id == id});
+          if (tag){
+            name.className = 'link';
+            name.title = 'открыть тег';
+            name.onclick = function(){
+              if (!is_dirty() || confirm('Есть несохранённые изменения. Перейти к тегу «' + tag.title + '» без сохранения?')){
+                edit(tag);
+              }
+            };
+          }
+          // чип фото ведёт на страницу редактирования фото
+          if (state.items[id] && state.items[id].type == 'photo'){
+            name = document.createElement('a');
+            name.textContent = item_label(id);
+            name.href = '/photo/' + id;
+            name.title = 'редактировать фото';
+            name.onclick = function(e){
+              if (is_dirty() && !confirm('Есть несохранённые изменения. Перейти к фото без сохранения?')){
+                e.preventDefault();
+              }
+            };
+          }
+          chip.appendChild(name);
+          var rm = document.createElement('button');
+          rm.textContent = '×';
+          rm.title = 'убрать';
+          rm.onclick = function(){
+            state[field] = state[field].filter(function(x){return x != id});
+            render_links();
+          };
+          chip.appendChild(rm);
+          box.appendChild(chip);
+        });
+      }
+
+      function fill_select(field, filter){
+        var used = state.parents.concat(state.children, [state.current]);
+        var ids = Object.keys(state.items).sort().filter(function(id){
+          return used.indexOf(id) == -1 && filter(state.items[id]);
+        });
+        fill_picker(field + '_add', '— добавить —', ids, function(picked){
+          state[field].push.apply(state[field], picked);
+          render_links();
+        }, true);
+      }
+
+      $('new').onclick = function(){
+        if (open_tag(null)){
+          $('title').focus();
+        }
+      };
+
+      // ↑/↓ — к соседнему корневому тегу, когда фокус не в поле ввода (там стрелки двигают курсор)
+      document.addEventListener('keydown', function(e){
+        if ((e.key != 'ArrowUp' && e.key != 'ArrowDown') || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey
+            || e.target.closest('input, textarea, select, [contenteditable]') || document.querySelector('div.picker.open')){
+          return;
+        }
+        var roots = root_tags();
+        if (!roots.length){
+          return;
+        }
+        e.preventDefault();
+        var n = roots.findIndex(function(t){return t.id == state.current});
+        // новый тег (или тег не из списка): ↓ — к первому, ↑ — к последнему
+        var next = n == -1 ? (e.key == 'ArrowDown' ? 0 : roots.length - 1)
+          : Math.max(0, Math.min(roots.length - 1, n + (e.key == 'ArrowDown' ? 1 : -1)));
+        if (next != n && open_tag(roots[next])){
+          $('tags').querySelector('div.item.current').scrollIntoView({block: 'nearest'});
+        }
+      });
+
+      $('add_photo').onclick = function(){
+        if (!is_dirty() || confirm('Есть несохранённые изменения. Перейти к добавлению фото или видео без сохранения?')){
+          location.href = '/photo/new';
+        }
+      };
+
+      $('save').onclick = function(){
+        var body = {
+          title: $('title').value.trim(),
+          info: $('info').value,
+          parents: state.parents,
+          children: state.children,
+        };
+        var request = state.current
+          ? api('PUT', '/api/tags/' + state.current, body)
+          : api('POST', '/api/tags', body);
+        request.then(function(res){
+          return load(res.id).then(function(){
+            var extra = res.changed.length ? ', обновлены связи в: ' + res.changed.map(item_label).join(', ') : '';
+            show_message('Сохранено' + extra, 'ok');
+          });
+        }).catch(function(e){
+          show_message(e.message, 'error');
+        });
+      };
+
+      $('delete').onclick = function(){
+        var id = state.current;
+        var title = $('title').value;
+        if (!confirm('Удалить тег «' + title + '»?')){
+          return;
+        }
+        api('DELETE', '/api/tags/' + id).then(function(res){
+          return load(null).then(function(){
+            var extra = res.changed.length ? ', ссылки убраны из: ' + res.changed.map(item_label).join(', ') : '';
+            show_message('Тег «' + title + '» удалён' + extra, 'ok');
+          });
+        }).catch(function(e){
+          show_message(e.message, 'error');
+        });
+      };
+
+      // ?tag=<id> открывает этот тег сразу (так возвращаемся со страницы фото)
+      load(new URLSearchParams(location.search).get('tag')).catch(function(e){
+        show_message(e.message, 'error');
+      });
+    </script>
+  </body>
+</html>
