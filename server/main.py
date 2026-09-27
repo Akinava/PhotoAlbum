@@ -524,6 +524,12 @@ def static(req, rel: str):
     return File(static_file(STATIC_DIR, rel))
 
 
+@route("GET", "/favicon.ico")
+def favicon(req):
+    # браузеры запрашивают /favicon.ico сами, в том числе для страниц альбома
+    return File(STATIC_DIR / "favicon.ico", no_cache=False)
+
+
 @route("GET", "/album")
 def album_root(req):
     # относительные ссылки index.html работают только со слешем на конце
