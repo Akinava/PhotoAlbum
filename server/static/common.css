@@ -1,5 +1,43 @@
 :root{
   color-scheme: light;
+  --bg: #fff;
+  --text: #222;
+  --muted: #777;
+  --faint: #999;
+  --link: #1a5fb4;
+  --link-current: #0f3d78;
+  --current: #dbe7f8;
+  --hover: #e6e6e6;
+  --border: #ccc;
+  --field: #fff;
+  --field-text: #555;
+  --photo: #f3ead0;
+  --photo-hover: #eadcb0;
+  --photo-text: #7a4f00;
+  --marked: #fbf3c4;
+  --danger: #c01c28;
+  --ok: #26a269;
+}
+/* ночная тема */
+:root[data-theme=dark]{
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --text: #ddd;
+  --muted: #999;
+  --faint: #777;
+  --link: #78aeed;
+  --link-current: #cfe0f7;
+  --current: #1f3a5f;
+  --hover: #333;
+  --border: #555;
+  --field: #2a2a2a;
+  --field-text: #ccc;
+  --photo: #4a3f1f;
+  --photo-hover: #5a4c25;
+  --photo-text: #e5c07b;
+  --marked: #4a4220;
+  --danger: #f66151;
+  --ok: #57e389;
 }
 /* иначе display из правил ниже перебивает атрибут hidden */
 [hidden]{
@@ -8,14 +46,15 @@
 body{
   margin: 16px;
   font-family: sans-serif;
-  color: #222;
+  color: var(--text);
+  background: var(--bg);
 }
 a{
-  color: #1a5fb4;
+  color: var(--link);
 }
 label{
   display: block;
-  color: #777;
+  color: var(--muted);
   font-size: 0.9em;
   margin: 12px 0 4px;
 }
@@ -24,7 +63,7 @@ input[type=text], textarea, select{
   box-sizing: border-box;
   font: inherit;
   padding: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 4px;
 }
 textarea{
@@ -32,7 +71,7 @@ textarea{
   resize: vertical;
 }
 div.hint{
-  color: #777;
+  color: var(--muted);
   font-size: 0.8em;
   margin-top: 2px;
 }
@@ -43,15 +82,15 @@ div.chips{
   margin-bottom: 6px;
 }
 span.chip{
-  background: #e6e6e6;
+  background: var(--hover);
   border-radius: 12px;
   padding: 2px 4px 2px 10px;
 }
 span.chip.photo{
-  background: #f3ead0;
+  background: var(--photo);
 }
 span.chip span.link{
-  color: #1a5fb4;
+  color: var(--link);
   cursor: pointer;
 }
 span.chip span.link:hover{
@@ -63,10 +102,10 @@ div.picker{
 }
 div.picker_head{
   padding: 6px 28px 6px 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  background: #fff;
-  color: #555;
+  background: var(--field);
+  color: var(--field-text);
   cursor: pointer;
   user-select: none;
 }
@@ -74,7 +113,7 @@ div.picker_head::after{
   content: '▾';
   position: absolute;
   right: 10px;
-  color: #777;
+  color: var(--muted);
 }
 div.picker_list{
   display: none;
@@ -85,8 +124,8 @@ div.picker_list{
   z-index: 10;
   max-height: 260px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #ccc;
+  background: var(--field);
+  border: 1px solid var(--border);
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
@@ -97,13 +136,13 @@ input.picker_search{
   position: sticky;
   top: 0;
   border: none;
-  border-bottom: 1px solid #ccc;
+  border-bottom: 1px solid var(--border);
   border-radius: 0;
-  background: #fff;
+  background: var(--field);
 }
 div.picker_empty{
   padding: 4px 8px;
-  color: #999;
+  color: var(--faint);
 }
 div.picker_option{
   padding: 4px 8px;
@@ -111,15 +150,15 @@ div.picker_option{
 }
 div.picker_option:hover,
 div.picker_option.active{
-  background: #e6e6e6;
+  background: var(--hover);
 }
 div.picker_option.photo{
-  color: #7a4f00;
-  background: #f3ead0;
+  color: var(--photo-text);
+  background: var(--photo);
 }
 div.picker_option.photo:hover,
 div.picker_option.photo.active{
-  background: #eadcb0;
+  background: var(--photo-hover);
 }
 div.picker_option input[type=checkbox]{
   margin: 0 6px 0 0;
@@ -130,8 +169,8 @@ div.picker_footer{
   position: sticky;
   bottom: 0;
   padding: 6px 8px;
-  border-top: 1px solid #ccc;
-  background: #fff;
+  border-top: 1px solid var(--border);
+  background: var(--field);
   text-align: right;
 }
 div.picker_footer button:disabled{
@@ -142,12 +181,12 @@ span.chip button{
   border: none;
   background: none;
   cursor: pointer;
-  color: #777;
+  color: var(--muted);
   font-size: 1em;
   padding: 0 4px;
 }
 span.chip button:hover{
-  color: #c01c28;
+  color: var(--danger);
 }
 div.buttons{
   display: flex;
@@ -164,9 +203,9 @@ button.action{
   cursor: pointer;
 }
 button.action.danger{
-  border-color: #c01c28;
-  background: #fff;
-  color: #c01c28;
+  border-color: var(--danger);
+  background: var(--field);
+  color: var(--danger);
   margin-left: auto;
 }
 div.message{
@@ -174,8 +213,32 @@ div.message{
   min-height: 1.2em;
 }
 div.message.error{
-  color: #c01c28;
+  color: var(--danger);
 }
 div.message.ok{
-  color: #26a269;
+  color: var(--ok);
+}
+/* переключатель дневной / ночной темы */
+button.theme_toggle{
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 20;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+button.theme_toggle:hover{
+  background: var(--hover);
+}
+/* место под переключатель, чтобы он не закрывал заголовок */
+h2{
+  padding-right: 44px;
 }

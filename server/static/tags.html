@@ -6,6 +6,7 @@
     <title>Редактор тегов</title>
     <link rel="icon" href="/favicon.ico">
     <link rel="stylesheet" href="/static/common.css">
+    <script src="/static/theme.js"></script>
     <style>
       div.layout{
         display: flex;
@@ -23,19 +24,19 @@
       }
       div.item{
         cursor: pointer;
-        color: #1a5fb4;
+        color: var(--link);
         padding: 4px 6px;
         border-radius: 4px;
       }
       div.item:hover{
-        background: #e6e6e6;
+        background: var(--hover);
       }
       /* светлый фон с полоской слева — чтобы не путать выбранный тег со сплошными синими кнопками над списком */
       div.item.current{
-        background: #dbe7f8;
-        color: #0f3d78;
+        background: var(--current);
+        color: var(--link-current);
         font-weight: 600;
-        box-shadow: inset 3px 0 #1a5fb4;
+        box-shadow: inset 3px 0 var(--link);
       }
       @media (max-width: 700px){
         div.layout{

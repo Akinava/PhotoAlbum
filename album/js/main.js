@@ -20,8 +20,46 @@ settings.media_nav = null;  // {prev, next} для текущей фотки и�
 settings.page_token = 0;    // номер последнего перехода, ответы от старых страниц отбрасываются
 settings.visited = {};      // уже запрошенные id при обходе тегов текущей страницы
 
+// тема ставится сразу при загрузке скрипта в <head>, чтобы страница не мигала светлым фоном
+apply_theme(load_theme());
+
 window.onload = function(){
+  add_theme_toggle();
   init();
+}
+
+function load_theme(){
+  try {
+    var saved = localStorage.getItem('theme');
+    if (saved == 'light' || saved == 'dark'){
+      return saved;
+    }
+  } catch (e) {}
+  // без сохранённого выбора следуем настройке системы
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function apply_theme(theme){
+  document.documentElement.dataset.theme = theme;
+  var button = document.querySelector('button.theme_toggle');
+  if (button){
+    button.textContent = theme == 'dark' ? '☀' : '☾';
+    button.title = theme == 'dark' ? 'Дневной режим' : 'Ночной режим';
+  }
+}
+
+function add_theme_toggle(){
+  var button = document.createElement('button');
+  button.className = 'theme_toggle';
+  button.onclick = function(){
+    var theme = document.documentElement.dataset.theme == 'dark' ? 'light' : 'dark';
+    try {
+      localStorage.setItem('theme', theme);
+    } catch (e) {}
+    apply_theme(theme);
+  };
+  document.body.appendChild(button);
+  apply_theme(document.documentElement.dataset.theme);
 }
 
 document.addEventListener('keydown', function(e){

@@ -1,7 +1,52 @@
+/* дневная тема */
+:root{
+  color-scheme: light;
+  --bg: #fff;
+  --text: #222;
+  --muted: #777;
+  --link: #1a5fb4;
+  --hover: #e6e6e6;
+  --disabled: #ccc;
+}
+
+/* ночная тема */
+:root[data-theme=dark]{
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --text: #ddd;
+  --muted: #999;
+  --link: #78aeed;
+  --hover: #333;
+  --disabled: #555;
+}
+
 body{
   margin: 16px;
   font-family: sans-serif;
-  color: #222;
+  color: var(--text);
+  background: var(--bg);
+}
+
+/* переключатель дневной / ночной темы */
+button.theme_toggle{
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  border: 1px solid var(--disabled);
+  border-radius: 50%;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button.theme_toggle:hover{
+  background: var(--hover);
 }
 
 body > div{
@@ -9,19 +54,19 @@ body > div{
 }
 
 div.label{
-  color: #777;
+  color: var(--muted);
   font-size: 0.9em;
 }
 
 div.item{
   cursor: pointer;
-  color: #1a5fb4;
+  color: var(--link);
   padding: 2px 6px;
   border-radius: 4px;
 }
 
 div.item:hover{
-  background: #e6e6e6;
+  background: var(--hover);
 }
 
 img.icon{
@@ -159,12 +204,17 @@ div.button{
 }
 
 div.button.disabled{
-  color: #ccc;
+  color: var(--disabled);
   cursor: default;
 }
 
 a.info.link{
-  color: #1a5fb4;
+  color: var(--link);
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* место под переключатель темы, чтобы он не закрывал навигацию */
+div.breadcrumb{
+  padding-right: 44px;
 }

@@ -6,6 +6,7 @@
     <title>Редактор фото</title>
     <link rel="icon" href="/favicon.ico">
     <link rel="stylesheet" href="/static/common.css">
+    <script src="/static/theme.js"></script>
     <style>
       div.layout{
         display: flex;
@@ -101,12 +102,12 @@
         border-radius: 4px;
       }
       div.area_row.active{
-        background: #fbf3c4;
+        background: var(--marked);
       }
       div.area_row span.num{
         width: 1.6em;
         text-align: center;
-        color: #777;
+        color: var(--muted);
       }
       div.area_row div.picker{
         flex: 1;
@@ -115,19 +116,19 @@
       }
       div.area_row button{
         font: inherit;
-        border: 1px solid #ccc;
-        background: #fff;
+        border: 1px solid var(--border);
+        background: var(--field);
         border-radius: 4px;
         cursor: pointer;
         padding: 4px 8px;
-        color: #555;
+        color: var(--field-text);
       }
       div.area_row button.pressed{
         border-color: #f6d32d;
-        background: #fbf3c4;
+        background: var(--marked);
       }
       div.area_row button.rm:hover{
-        color: #c01c28;
+        color: var(--danger);
       }
       @media (max-width: 900px){
         div.layout{
